@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stroop Test</title>
+<style> 
+  body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #000000; color: #ffffff; }
+  h1 { font-size: 24px; }
+  .word { font-size: 48px; font-weight: bold; margin: 20px 0; }
+  .buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 400px; margin: auto; }
+  button { padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #000000; cursor: pointer; }
+  .stats { margin-top: 20px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<h1>Online Stroop Test</h1>
+<p>Click the button matching the <strong>font color</strong> (not the word). Each trial has a short timer.</p>
+<div id="trial-info"></div>
+<div class="word" id="word"></div>
+<div class="buttons" id="buttons"></div>
+<div class="stats" id="stats"></div>
+<script>
+const COLORS = [ // Define color options for the Stroop test
+  { name: "RED", css: "#e11d48" },
+  { name: "GREEN", css: "#16a34a" },
+  { name: "BLUE", css: "#3b82f6" },
+  { name: "YELLOW", css: "#ffff00" },
+  { name: "PURPLE", css: "#7c3aed" },
+  { name: "ORANGE", css: "#f97316" },
+];
+let trials = [], current = 0, results = [], countdown, timer, trialStart; // Initialize variables
+const trialCount = 20, perTrialSeconds = 5; // Define trial parameters
+
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; } // Shuffle array
+function generateTrials(count){ // Generate an array of trials
+  const t = [];
+  for(let i=0;i<count;i++){
+    const wordIndex = Math.floor(Math.random()*COLORS.length);
+    // Always pick a colorIndex different from wordIndex
+    const choices = COLORS.map((_, idx) => idx).filter(n => n!==wordIndex);
+    const colorIndex = choices[Math.floor(Math.random()*choices.length)];
+    t.push({word: COLORS[wordIndex].name, colorIndex, congruent: false});
+  }
+  return shuffle(t); // Shuffle the trials
+}
+
+function startTest(){
+  trials = generateTrials(trialCount);
+  results = [];
+  current = 0;
+  showTrial();
+}
+
+function showTrial(){
+  if(current >= trials.length){  // Check if there are no more trials
+    endTest(); // End the test
+    return;
+  }
+  const trial = trials[current]; // Get the current trial
+  document.getElementById('trial-info').textContent = `Trial ${current+1} of ${trialCount}`; // Update trial info
+  const w = document.getElementById('word'); // Get the word element
+  w.textContent = trial.word; // Set the word text
+  w.style.color = COLORS[trial.colorIndex].css; // Set the word color
+  const btns = document.getElementById('buttons'); // Get the buttons container
+  btns.innerHTML = ''; // Clear previous buttons
+  COLORS.forEach((c, idx) => { // Create a button for each color
+    const b = document.createElement('button'); // Create a button element for each color
+    b.textContent = c.name; // Set button text
+    b.onclick = () => handleResponse(idx); // Set button click handler
+    btns.appendChild(b); // Add button to the container
+  });
+  trialStart = performance.now(); // Record the start time of the trial
+  countdown = perTrialSeconds; // Reset countdown timer
+  clearInterval(timer); // Clear any existing timer
+  timer = setInterval(() => { // Start a new timer
+    countdown--; // Decrement countdown
+    if(countdown <= 0){ // Check if the countdown has reached zero
+      handleResponse(null,true); // Handle timeout
+    }
+  }, 1000);
+}
+
+function handleResponse(selected, timedOut=false){ // Handle the user's response
+  const now = performance.now(); // Get the current time
+  const rt = trialStart ? (now - trialStart)/1000 : null; // Calculate response time
+  const trial = trials[current]; // Get the current trial
+  const correct = selected !== null && selected === trial.colorIndex; // Check if the response was correct
+  results.push({ trial: current+1, correct, timedOut, rt }); // Push the result for the current trial
+  current++; // Move to the next trial
+  showTrial(); // Show the next trial
+}
+
+function endTest(){ // End the Stroop test
+  clearInterval(timer); // Stop the countdown timer
+  const correctCount = results.filter(r => r.correct).length; // Get the count of correct responses
+  const avgRT = (results.filter(r => r.correct).reduce((a,b)=>a+b.rt,0) / correctCount).toFixed(3); // Calculate average response time
+  document.getElementById('stats').innerHTML = `<p>Test complete!</p><p>Correct: ${correctCount}/${results.length}</p><p>Accuracy: ${Math.round((correctCount/results.length)*100)}%</p><p>Avg RT: ${avgRT}s</p>`; // Show the test results
+}
+
+startTest(); // Start the Stroop test
+</script>
+</body>
+</html>
